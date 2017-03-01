@@ -7,6 +7,7 @@ Build-Depends:
  dh-autoreconf,
  dh-apache2,
  apache2-dev,
+ libb64-dev,
  libjwt-dev (>= 1.7.3),
  zlib1g-dev,
  libjansson-dev
@@ -20,6 +21,7 @@ Architecture: any
 Depends:
  ${misc:Depends},
  apache2 | httpd,
+ libb64-0d,
  libjwt0 (>= 1.7.3),
  zlib1g,
  libjansson4

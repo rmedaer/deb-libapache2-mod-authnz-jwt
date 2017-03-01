@@ -1,3 +1,12 @@
+libapache2-mod-authnz-jwt (1.1.2-1sid1) unstable; urgency=medium
+
+  * Patched to allow passing JWT as password in pseudo basic auth.
+    The purpose is the same then Github for Git authentication using
+    smart HTTP procotol. GitHub documentation:
+    https://help.github.com/articles/git-automation-with-oauth-tokens/
+
+ -- Raphael Medaer <raphael@medaer.me>  Wed, 01 Mar 2017 15:49:40 +0100
+
 libapache2-mod-authnz-jwt (1.1.2-1) unstable; urgency=low
 
   * Initial release. This currently close not any ITP.

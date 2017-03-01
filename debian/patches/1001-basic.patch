@@ -1,0 +1,184 @@
+--- a/mod_authnz_jwt.c
++++ b/mod_authnz_jwt.c
+@@ -24,6 +24,9 @@
+ //JSON library
+ #include "jansson.h"
+ 
++// To decode Basic authorization header
++#include <b64/cdecode.h>
++
+ #include "apr_strings.h"
+ #include "apr_lib.h"
+ 
+@@ -961,50 +964,107 @@
+ 		ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55404)
+ 							"auth_jwt authn: missing Authorization header, responding with WWW-Authenticate header...");
+ 		apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool, "Bearer realm=\"", ap_auth_name(r),"\"", NULL));
++		apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool, "Basic realm=\"", ap_auth_name(r),"\"", NULL));
+ 		return HTTP_UNAUTHORIZED;
+ 	}
+ 
+ 	int header_len = strlen(authorization_header);
+ 	if(header_len > 7 && !strncmp(authorization_header, "Bearer ", 7)){
+-		token_str = authorization_header+7;
+-		jwt_t* token;
+-		ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55405)
+-							"auth_jwt authn: checking signature and fields correctness...");
+-		rv = token_check(r, &token, token_str, key);
+-        
+-		if(OK == rv){
+-			ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55406)
+-							"auth_jwt authn: signature is correct");
+-            const char* found_alg = token_get_alg(token);
+-            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55405)
+-							"auth_jwt authn: algorithm found is %s", found_alg);
+-			const char* attribute_username = (const char*)get_config_value(r, dir_attribute_username);
+-			char* maybe_user = (char *)token_get_claim(token, attribute_username);
+-			if(maybe_user == NULL){
+-				ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55407)
+-						"Username was not in token ('%s' attribute is expected)", attribute_username);
+-				apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool,
+-				"Bearer realm=\"", ap_auth_name(r),"\", error=\"invalid_token\", error_description=\"Username was not in token\"",
+-				 NULL));
+-				return HTTP_UNAUTHORIZED;
+-			}
+-			apr_table_setn(r->notes, "jwt", (const char*)token);		
+-			r->user = maybe_user;
+-			return OK;
+-		}else{
+-			return rv;
++		token_str = strdup(authorization_header+7);
++	} else if(header_len > 6 && !strncmp(authorization_header, "Basic ", 6)) {
++		// Read basic
++		const char *separator;
++		char *user;
++		char *decode;
++		char *basic = authorization_header + 6;
++		int cnt = 0;
++		base64_decodestate s;
++
++		decode = (char*)malloc((((4 * strlen(basic) / 3) + 3) & ~3) + 1); // Malloc with max size of basic
++		base64_init_decodestate(&s);
++
++		if ((cnt = base64_decode_block(basic, strlen(basic), decode, &s)) <= 0) {
++			ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55408)
++								"auth_jwt authn: cannot decode Basic authorization hedaer");
++			apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool,
++				"Basic realm=\"", ap_auth_name(r), "\", error=\"invalid_header\", error_description=\"Could not decode Basic\"", NULL));
++			free(decode);
++			return HTTP_UNAUTHORIZED;
+ 		}
++		decode[cnt] = '\0';
+ 
+-		if(token)
+-			token_free(token);
+-	}else{
++		if ((separator = strchr(decode, ':')) == NULL) {
++			ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55408)
++								"auth_jwt authn: missing ':' separator in Basic");
++			apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool,
++				"Basic realm=\"", ap_auth_name(r), "\", error=\"invalid_header\", error_description=\"Could not find ':' separator in Basic\"", NULL));
++			free(decode);
++			return HTTP_UNAUTHORIZED;
++		}
++
++		/* Dump content of user and password */
++		if ((user = strndup(decode, separator - decode)) == NULL) {
++			ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55408)
++								"auth_jwt authn: failed to copy user from Basic header");
++			free(decode);
++			return HTTP_INTERNAL_SERVER_ERROR;
++		}
++
++		if ((token_str = strdup(separator + 1)) == NULL) {
++			ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55408)
++								"auth_jwt authn: failed to copy password from Basic header");
++			free(user);
++			free(decode);
++			return HTTP_INTERNAL_SERVER_ERROR;
++		}
++
++		free(user);
++		free(decode);
++	} else {
+ 		ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55408)
+ 							"auth_jwt authn: type of Authorization header is not Bearer");
+ 		apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool,
++		"Basic realm=\"", ap_auth_name(r),"\", error=\"invalid_request\", error_description=\"Authentication type must be Basic\"",
++		 NULL));
++		apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool,
+ 		"Bearer realm=\"", ap_auth_name(r),"\", error=\"invalid_request\", error_description=\"Authentication type must be Bearer\"",
+ 		 NULL));
+ 		return HTTP_UNAUTHORIZED;
+ 	}
++
++	jwt_t* token;
++	ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55405)
++						"auth_jwt authn: checking signature and fields correctness...");
++	rv = token_check(r, &token, token_str, key);
++
++	if(OK == rv){
++		ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55406)
++						"auth_jwt authn: signature is correct");
++            const char* found_alg = token_get_alg(token);
++            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(55405)
++						"auth_jwt authn: algorithm found is %s", found_alg);
++		const char* attribute_username = (const char*)get_config_value(r, dir_attribute_username);
++		char* maybe_user = (char *)token_get_claim(token, attribute_username);
++		if(maybe_user == NULL){
++			ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(55407)
++					"Username was not in token ('%s' attribute is expected)", attribute_username);
++			apr_table_setn(r->err_headers_out, "WWW-Authenticate", apr_pstrcat(r->pool,
++			"Bearer realm=\"", ap_auth_name(r),"\", error=\"invalid_token\", error_description=\"Username was not in token\"",
++			 NULL));
++			return HTTP_UNAUTHORIZED;
++		}
++		apr_table_setn(r->notes, "jwt", (const char*)token);
++		r->user = maybe_user;
++	}
++
++	// XXX: The following free is crashing the module ...
++	// if(token)
++	// 	token_free(token);
++
++	if(token_str)
++		free(token_str);
++
++	return rv;
+ }
+ 
+ 
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -3,8 +3,8 @@
+ noinst_LTLIBRARIES = libmodauthnzjwt.la
+ noinst_DATA = mod_authnz_jwt.la
+ 
+-AM_CPPFLAGS = ${APACHE_CFLAGS} ${JWT_CFLAGS} ${JANSSON_CFLAGS} ${Z_CFLAGS}
+-AM_LDFLAGS = ${JWT_LIBS} ${JANSSON_LDFLAGS} ${Z_LIBS} ${APR_LDFLAGS}
++AM_CPPFLAGS = ${APACHE_CFLAGS} ${JWT_CFLAGS} ${JANSSON_CFLAGS} ${Z_CFLAGS} ${B64_CFLAGS}
++AM_LDFLAGS = ${JWT_LIBS} ${JANSSON_LDFLAGS} ${Z_LIBS} ${APR_LDFLAGS} ${B64_LIBS}
+ 
+ libmodauthnzjwt_la_SOURCES = mod_authnz_jwt.c
+ 
+@@ -24,4 +24,5 @@
+ 
+ mod_authnz_jwt.la: libmodauthnzjwt.la
+ 	${APXS} -c -o $@ $< ${APACHE_CFLAGS} ${JWT_CFLAGS} ${JWT_LIBS} \
+-		${JANSSON_CFLAGS} ${JANSSON_LDFLAGS} ${Z_CFLAGS} ${Z_LIBS}
++		${JANSSON_CFLAGS} ${JANSSON_LDFLAGS} ${Z_CFLAGS} ${Z_LIBS} \
++		${B64_CFLAGS} ${B64_LIBS}
+--- a/configure.ac
++++ b/configure.ac
+@@ -55,6 +55,11 @@
+ PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
+ PKG_CHECK_MODULES([Z], [zlib])
+ 
++AC_SEARCH_LIBS([base64_init_decodestate], [b64], [], [
++  AC_MSG_ERROR([unable to find the base64_init_decodestate function from libb64])
++])
++AC_CHECK_HEADERS([b64/cdecode.h])
++
+ # Idea taken from libopekele
+ nitpick=false
+ AC_ARG_ENABLE([nitpicking],
