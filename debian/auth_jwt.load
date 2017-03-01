@@ -1,0 +1,1 @@
+LoadModule auth_jwt_module    /usr/lib/apache2/modules/mod_authnz_jwt.so

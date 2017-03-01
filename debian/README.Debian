@@ -1,0 +1,10 @@
+libapache2-mod-authnz-jwt for Debian
+------------------------------------
+
+This package is inspired from libapache2-mod-auth-openid.
+Before packaging mod_authnz_jwt for Debian, I implemented autoconf on uptream.
+Then I used dh-autoreconf and dh-apache2 to build the Debian package.
+
+I made a patch for Makefile.am in order to install shared module in DESTDIR.
+
+ -- Raphael Medaer <raphael@medaer.me>  Wed, 01 Mar 2017 11:10:41 +0100

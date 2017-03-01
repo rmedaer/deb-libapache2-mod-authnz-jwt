@@ -1,0 +1,5 @@
+libapache2-mod-authnz-jwt (1.1.2-1) unstable; urgency=low
+
+  * Initial release. This currently close not any ITP.
+
+ -- Raphael Medaer <raphael@medaer.me>  Wed, 01 Mar 2017 11:10:41 +0100

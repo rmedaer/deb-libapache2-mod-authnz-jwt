@@ -1,0 +1,24 @@
+Source: libapache2-mod-authnz-jwt
+Section: web
+Priority: optional
+Maintainer: Raphael Medaer <raphael@medaer.me>
+Build-Depends:
+ debhelper (>= 9),
+ dh-autoreconf,
+ dh-apache2,
+ apache2-dev,
+ libjwt-dev (>= 1.7.3)
+Standards-Version: 3.9.5
+Homepage: https://github.com/rmedaer/libapache2-mod-authnz-jwt
+Vcs-Git: git://github.com/rmedaer/libapache2-mod-authnz-jwt
+Vcs-Browser: https://github.com/rmedaer/libapache2-mod-authnz-jwt
+
+Package: libapache2-mod-authnz-jwt
+Architecture: any
+Depends:
+ ${misc:Depends},
+ apache2 | httpd,
+ libjwt0 (>= 1.7.3)
+Description: An JWT (JSON web tokens) module for Apache httpd
+ This package contains an Apache2 module to process authentication using
+ JSON Web tokens (JWT).

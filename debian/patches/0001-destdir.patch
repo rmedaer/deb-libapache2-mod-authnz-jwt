@@ -1,0 +1,11 @@
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -20,7 +20,7 @@
+ endif
+ 
+ install-exec-local:
+-	${APXS} -i -a -n 'auth_jwt' mod_authnz_jwt.la
++	${APXS} -i -S LIBEXECDIR=${DESTDIR}/usr/lib/apache2/modules -n 'auth_jwt' mod_authnz_jwt.la
+ 
+ mod_authnz_jwt.la: libmodauthnzjwt.la
+ 	${APXS} -c -o $@ $< ${APACHE_CFLAGS} ${JWT_CFLAGS} ${JWT_LIBS} \
