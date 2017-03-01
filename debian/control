@@ -7,7 +7,9 @@ Build-Depends:
  dh-autoreconf,
  dh-apache2,
  apache2-dev,
- libjwt-dev (>= 1.7.3)
+ libjwt-dev (>= 1.7.3),
+ zlib1g-dev,
+ libjansson-dev
 Standards-Version: 3.9.5
 Homepage: https://github.com/rmedaer/libapache2-mod-authnz-jwt
 Vcs-Git: git://github.com/rmedaer/libapache2-mod-authnz-jwt
@@ -18,7 +20,9 @@ Architecture: any
 Depends:
  ${misc:Depends},
  apache2 | httpd,
- libjwt0 (>= 1.7.3)
+ libjwt0 (>= 1.7.3),
+ zlib1g,
+ libjansson4
 Description: An JWT (JSON web tokens) module for Apache httpd
  This package contains an Apache2 module to process authentication using
  JSON Web tokens (JWT).
