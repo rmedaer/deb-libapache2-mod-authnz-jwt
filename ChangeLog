@@ -1,0 +1,13 @@
+v1.0
+- Added directives AuthJWTFormUsername, AuthJWTFormPassword, AuthJWTAttributeUsername
+- Delete AuthJWTSub and sub check
+- Add authorization based on claims (Require jwt-claim and Require jwt-claim-array)
+
+
+v0.2
+- Support for EC and RSA in JWT signature
+- Added directives JWTSignaturePublicKeyFile and JWTSignaturePrivateKeyFile
+- Renamed directive JWTSignatureSecret to JWTSignatureSharedSecret
+
+v0.1
+- Support for HMAC in JWT signature

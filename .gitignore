@@ -1,0 +1,6 @@
+*.o
+*.lo
+*.slo
+*.la
+.libs/*
+tests/__pycache__/*
